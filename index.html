@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>उड़ान 2026 — Gate Scanner</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #1e1e2e;
+    --text: #f0efe8;
+    --muted: #6b6b7a;
+    --orange: #e8622a;
+    --blue: #1a4a7a;
+    --valid: #1db954;
+    --used: #e8a020;
+    --invalid: #e83a2a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    width: 100%;
+    padding: 18px 20px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .header-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--orange);
+    line-height: 1;
+  }
+
+  .header-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .scan-count {
+    background: var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .scan-count span {
+    display: block;
+    font-size: 18px;
+    color: var(--text);
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 1px;
+  }
+
+  /* ── Main ── */
+  main {
+    width: 100%;
+    max-width: 480px;
+    padding: 20px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── Scanner Box ── */
+  .scanner-wrap {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    background: #000;
+    aspect-ratio: 1;
+    max-height: 300px;
+  }
+
+  #reader {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Hide default html5-qrcode UI chrome */
+  #reader__scan_region { border: none !important; }
+  #reader__dashboard { display: none !important; }
+  #reader img { display: none !important; }
+
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .scan-frame {
+    width: 60%;
+    aspect-ratio: 1;
+    position: relative;
+  }
+
+  .scan-frame::before,
+  .scan-frame::after,
+  .scan-frame > span::before,
+  .scan-frame > span::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-color: var(--orange);
+    border-style: solid;
+  }
+
+  .scan-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; }
+  .scan-frame::after  { top: 0; right: 0; border-width: 3px 3px 0 0; }
+  .scan-frame > span::before { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+  .scan-frame > span::after  { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
+  .scan-line {
+    position: absolute;
+    left: 5%;
+    width: 90%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--orange), transparent);
+    animation: scanMove 2s ease-in-out infinite;
+    top: 0;
+  }
+
+  @keyframes scanMove {
+    0%   { top: 5%; opacity: 1; }
+    50%  { top: 90%; opacity: 1; }
+    100% { top: 5%; opacity: 1; }
+  }
+
+  /* ── Result Card ── */
+  .result-card {
+    border-radius: 16px;
+    padding: 20px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    transition: all 0.3s ease;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .result-card.valid   { border-color: var(--valid);   background: #0d2b17; }
+  .result-card.used    { border-color: var(--used);    background: #2b1e0a; }
+  .result-card.invalid { border-color: var(--invalid); background: #2b0d0a; }
+
+  .result-icon {
+    font-size: 48px;
+    line-height: 1;
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  @keyframes popIn {
+    0%   { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .result-status {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 3px;
+  }
+
+  .result-card.valid   .result-status { color: var(--valid); }
+  .result-card.used    .result-status { color: var(--used); }
+  .result-card.invalid .result-status { color: var(--invalid); }
+
+  .result-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .result-sub {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  .idle-text {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── Log ── */
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2px;
+  }
+
+  .log-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    color: var(--muted);
+  }
+
+  .clear-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .log-dot.valid   { background: var(--valid); }
+  .log-dot.used    { background: var(--used); }
+  .log-dot.invalid { background: var(--invalid); }
+
+  .log-name { font-size: 13px; font-weight: 600; flex: 1; }
+  .log-time { font-size: 11px; color: var(--muted); }
+
+  /* ── Flash overlay ── */
+  .flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+    transition: opacity 0.1s;
+  }
+
+  .flash.valid   { background: rgba(29, 185, 84, 0.25); }
+  .flash.used    { background: rgba(232, 160, 32, 0.25); }
+  .flash.invalid { background: rgba(232, 58, 42, 0.25); }
+
+  .flash.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">उड़ान 2026</div>
+    <div class="header-sub">Gate Verification</div>
+  </div>
+  <div class="scan-count">
+    <span id="entryCount">0</span>
+    ENTERED
+  </div>
+</header>
+
+<main>
+  <div class="scanner-wrap">
+    <div id="reader"></div>
+    <div class="scan-overlay">
+      <div class="scan-frame">
+        <span></span>
+        <div class="scan-line"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="idle-text">Point camera at QR code</div>
+  </div>
+
+  <div class="log-header">
+    <div class="log-title">Scan Log</div>
+    <button class="clear-btn" onclick="clearLog()">Clear</button>
+  </div>
+  <div class="log-list" id="logList"></div>
+</main>
+
+<div class="flash" id="flash"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PASTE YOUR qr_ids.csv DATA HERE
+// Format: { "QR_ID": "STUDENT NAME", ... }
+// Run this in your terminal to generate it:
+//   python3 -c "
+//   import pandas as pd, json
+//   df = pd.read_csv('qr_ids.csv')
+//   d = dict(zip(df['QR_ID'], df['STUDENT NAME']))
+//   print(json.dumps(d, indent=2))
+//   "
+// Then paste the output below inside the curly braces
+// ═══════════════════════════════════════════════════════════════
+const QR_DATABASE = {
+  "UDAAN2026-659F07E34E": "Tanishq Som",
+  "UDAAN2026-379804244E": "Pradeep Godara",
+  "UDAAN2026-36AE31D2D2": "Hrishabh Singh",
+  "UDAAN2026-AC9C3321A0": "Priyanshu Chhipa",
+  "UDAAN2026-0AB0463F82": "Harsh chauhan",
+  "UDAAN2026-00565096AE": "Aman Jha",
+  "UDAAN2026-1B2E3E20F1": "Moin khan kayamkhani",
+  "UDAAN2026-9AA83CA7DF": "Megha tanwar",
+  "UDAAN2026-537C721258": "Aritri Dey",
+  "UDAAN2026-7FB85F3ABF": "Prabhveer kour",
+  "UDAAN2026-65861AC8DC": "Avni Goel",
+  "UDAAN2026-AC72501029": "Akus kaur bagga",
+  "UDAAN2026-9D013AB99B": "Sakshi Shukla",
+  "UDAAN2026-B23A506A80": "Prachi Kalia",
+  "UDAAN2026-C422C64570": "Pranjal Yadav",
+  "UDAAN2026-E791AE8A9F": "Sandhya Sinha",
+  "UDAAN2026-AA3B95F539": "Suhani Gupta",
+  "UDAAN2026-A5F88B05C6": "Simran taj",
+  "UDAAN2026-BCA6B1350D": "Anureet Kaur",
+  "UDAAN2026-E5F84DB268": "Angel Kalukuri",
+  "UDAAN2026-F541B24970": "Aeny Mehta",
+  "UDAAN2026-9ABEBA68B7": "Twinkle khangarot",
+  "UDAAN2026-0FE54E1B0B": "Rashi sinha",
+  "UDAAN2026-D459038010": "kriti agrawal",
+  "UDAAN2026-6B19DF6F27": "Khanak Khaitan",
+  "UDAAN2026-CECD2F20AC": "jahanvi jaishri",
+  "UDAAN2026-3913D00F79": "Anupama Rustagi",
+  "UDAAN2026-E362EF7FD9": "Priyanka Pal",
+  "UDAAN2026-B86EDF8E36": "Cordia Ghosh",
+  "UDAAN2026-CE10D4D6FC": "Jasoda Jain",
+  "UDAAN2026-3F038810DF": "Tanushree Singha Roy",
+  "UDAAN2026-BF36025FB1": "Devangana",
+  "UDAAN2026-B701EBC96F": "Riya bhonsle",
+  "UDAAN2026-E5A2CF1AC1": "Aashi Sharma",
+  "UDAAN2026-5E0B29E8F0": "Anushka Sinha",
+  "UDAAN2026-32C5517427": "Shrishti Tanwar",
+  "UDAAN2026-587A9D3B61": "Shruti Dhore",
+  "UDAAN2026-42F8A3F211": "Sakshi Bhujbal",
+  "UDAAN2026-6D001C8A39": "Hargundeep Kaur",
+  "UDAAN2026-F8887C68F2": "Tesu Goyal",
+  "UDAAN2026-1D4B9F1B33": "Aashi Chhatiawala",
+  "UDAAN2026-8DFE359DA2": "Kritika Gupta",
+  "UDAAN2026-4584959F74": "Vaishnavi Shelke",
+  "UDAAN2026-F72310AA6A": "Shruti Bhalerao",
+  "UDAAN2026-6DF4B4DA88": "Nikita Biswal",
+  "UDAAN2026-9BB3C61CB7": "Medha Verdhan",
+  "UDAAN2026-ECBB09150C": "Apoorva Srivastava",
+  "UDAAN2026-519B580D7B": "Shiti bhatia",
+  "UDAAN2026-12AC3802BC": "Harshal talda",
+  "UDAAN2026-4E0B1A08A3": "Garima Rajdev",
+  "UDAAN2026-0729ECCF32": "Janki Desai",
+  "UDAAN2026-40C82453EC": "Kanak mishra",
+  "UDAAN2026-9E8507E4FB": "Ambika Sharma",
+  "UDAAN2026-DA2BF4A5D8": "Shravni Misra",
+  "UDAAN2026-EC4EE731A5": "Pearl singh",
+  "UDAAN2026-C9389B9D6C": "Amisha Jethani",
+  "UDAAN2026-FD8A18D0D0": "Samiksha BS",
+  "UDAAN2026-88ABB4870A": "Linn Robert Dabre",
+  "UDAAN2026-1391E6E990": "Bhavya Shangari"
+};
+
+// ═══════════════════════════════════════════════════════════════
+
+// State (stored in localStorage so it survives refresh)
+function getUsed() {
+  return JSON.parse(localStorage.getItem('udaan_used') || '{}');
+}
+function markUsed(qrId, name) {
+  const used = getUsed();
+  used[qrId] = { name, time: new Date().toISOString() };
+  localStorage.setItem('udaan_used', JSON.stringify(used));
+}
+function getEntryCount() {
+  return Object.keys(getUsed()).length;
+}
+
+// Sounds
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+function playSound(type) {
+  try {
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'valid') {
+      osc.frequency.setValueAtTime(523, ctx.currentTime);
+      osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1);
+      osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start(); osc.stop(ctx.currentTime + 0.5);
+    } else if (type === 'used') {
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.setValueAtTime(330, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(); osc.stop(ctx.currentTime + 0.4);
+    } else {
+      osc.frequency.setValueAtTime(200, ctx.currentTime);
+      osc.frequency.setValueAtTime(150, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start(); osc.stop(ctx.currentTime + 0.5);
+    }
+  } catch(e) {}
+}
+
+// Flash screen
+function flashScreen(type) {
+  const el = document.getElementById('flash');
+  el.className = `flash ${type} show`;
+  setTimeout(() => el.className = `flash ${type}`, 200);
+}
+
+// Vibrate
+function vibrate(type) {
+  if (!navigator.vibrate) return;
+  if (type === 'valid')   navigator.vibrate([100]);
+  if (type === 'used')    navigator.vibrate([100, 80, 100]);
+  if (type === 'invalid') navigator.vibrate([300]);
+}
+
+// Update counter
+function updateCount() {
+  document.getElementById('entryCount').textContent = getEntryCount();
+}
+
+// Add to log
+function addLog(name, type) {
+  const list = document.getElementById('logList');
+  const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `
+    <div class="log-dot ${type}"></div>
+    <div class="log-name">${name}</div>
+    <div class="log-time">${time}</div>
+  `;
+  list.prepend(item);
+}
+
+function clearLog() {
+  document.getElementById('logList').innerHTML = '';
+}
+
+// Show result
+let resultTimeout;
+function showResult(type, name, sub) {
+  clearTimeout(resultTimeout);
+  const card = document.getElementById('resultCard');
+  const icons = { valid: '✅', used: '⚠️', invalid: '❌' };
+  const labels = { valid: 'ACCESS GRANTED', used: 'ALREADY USED', invalid: 'INVALID TICKET' };
+
+  card.className = `result-card ${type}`;
+  card.innerHTML = `
+    <div class="result-icon">${icons[type]}</div>
+    <div class="result-status">${labels[type]}</div>
+    <div class="result-name">${name}</div>
+    <div class="result-sub">${sub}</div>
+  `;
+
+  resultTimeout = setTimeout(() => {
+    card.className = 'result-card';
+    card.innerHTML = '<div class="idle-text">Point camera at QR code</div>';
+  }, 4000);
+}
+
+// Cooldown to prevent double scan
+let lastScanned = '';
+let scanCooldown = false;
+
+// QR scan handler
+function onScanSuccess(decodedText) {
+  if (scanCooldown || decodedText === lastScanned) return;
+  lastScanned = decodedText;
+  scanCooldown = true;
+  setTimeout(() => { scanCooldown = false; lastScanned = ''; }, 3000);
+
+  const name = QR_DATABASE[decodedText];
+  const used = getUsed();
+
+  if (!name) {
+    // Invalid QR
+    playSound('invalid');
+    flashScreen('invalid');
+    vibrate('invalid');
+    showResult('invalid', 'Unknown QR Code', decodedText.substring(0, 20) + '...');
+    addLog('Unknown QR', 'invalid');
+    return;
+  }
+
+  if (used[decodedText]) {
+    // Already used
+    const usedTime = new Date(used[decodedText].time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    playSound('used');
+    flashScreen('used');
+    vibrate('used');
+    showResult('used', name, `Already checked in at ${usedTime}`);
+    addLog(name, 'used');
+    return;
+  }
+
+  // Valid — mark as used
+  markUsed(decodedText, name);
+  updateCount();
+  playSound('valid');
+  flashScreen('valid');
+  vibrate('valid');
+  showResult('valid', name, 'Welcome to उड़ान 2026! 🎉');
+  addLog(name, 'valid');
+}
+
+// Init scanner
+updateCount();
+const html5Qr = new Html5Qrcode("reader");
+html5Qr.start(
+  { facingMode: "environment" },
+  { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
+  onScanSuccess,
+  () => {}
+).catch(err => {
+  document.getElementById('resultCard').innerHTML =
+    '<div class="idle-text" style="color:#e83a2a">Camera access denied.<br>Please allow camera permission.</div>';
+});
+</script>
+</body>
+</html>
